@@ -7,6 +7,9 @@ import speech_recognition as sr
 import base64
 import io
 import os
+import torch
+
+MAX_TOKENS = 1000 
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -32,15 +35,16 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # Prepare input with conversation history
             new_user_input_ids = tokenizer.encode(user_text + tokenizer.eos_token, return_tensors='pt')
+
             if chat_history_ids is not None:
-                bot_input_ids = new_user_input_ids
+                bot_input_ids = torch.cat([chat_history_ids, new_user_input_ids], dim=-1)
             else:
                 bot_input_ids = new_user_input_ids
 
             # Generate AI response
-            chat_history_ids = model.generate(
+            response_ids = model.generate(
                 bot_input_ids,
-                max_length=1000,
+                max_length=MAX_TOKENS,
                 pad_token_id=tokenizer.eos_token_id,
                 no_repeat_ngram_size=3,
                 do_sample=True, # If True, this'll make the model prevent picking the best answer
@@ -50,7 +54,15 @@ async def websocket_endpoint(websocket: WebSocket):
             )
 
             # Decode AI response, excluding the user input
-            ai_response = tokenizer.decode(chat_history_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)
+            ai_response = tokenizer.decode(response_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)
+            new_ai_response_ids = tokenizer.encode(ai_response + tokenizer.eos_token, return_tensors='pt')
+            updated_history = torch.cat([bot_input_ids, new_ai_response_ids], dim=-1)
+
+            if updated_history.shape[-1] > MAX_TOKENS:
+                excess = updated_history.shape[-1] - MAX_TOKENS
+                updated_history = updated_history[:, excess:]
+
+            chat_history_ids = updated_history
 
             # Convert AI response to speech
             # init a gTTS object
