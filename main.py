@@ -43,20 +43,26 @@ async def websocket_endpoint(websocket: WebSocket):
                 max_length=1000,
                 pad_token_id=tokenizer.eos_token_id,
                 no_repeat_ngram_size=3,
-                do_sample=True,
+                do_sample=True, # If True, this'll make the model prevent picking the best answer
                 top_k=50,
                 top_p=0.95,
-                temperature=0.8
+                temperature=0.5 # 0 is the most stable one, 1.5 is the most chaos one
             )
 
             # Decode AI response, excluding the user input
             ai_response = tokenizer.decode(chat_history_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)
 
             # Convert AI response to speech
-            tts = gTTS(text=ai_response, lang='zh-tw')
+            # init a gTTS object
+            tts = gTTS(text=ai_response, lang='en')
+            # init a temporary memory location 
             audio_buffer = io.BytesIO()
+            # write the audio data into the audio buffer
             tts.write_to_fp(audio_buffer)
+            # point the audio data to the begining
             audio_buffer.seek(0)
+            # read data from the audio buffer, and encode it to base64, and decode it as json so that we can pass to front
+            # sicne websocket don't know binary(MP3), but know JSON, we can convert it to base 64
             audio_base64 = base64.b64encode(audio_buffer.read()).decode('utf-8')
 
             # Send back user text, AI response, and audio

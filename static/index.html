@@ -27,6 +27,8 @@
         async function startRecognition() {
             if (!isRecognizing) {
                 ws = new WebSocket("ws://" + window.location.host + "/ws");
+
+                // receive response from backend
                 ws.onmessage = function(event) {
                     const data = JSON.parse(event.data);
                     const chatLog = document.getElementById("chat-log");
@@ -43,8 +45,9 @@
                     recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
                     recognition.continuous = true;
                     recognition.interimResults = false;
-                    recognition.lang = 'zh-TW';
+                    recognition.lang = 'en-US';
 
+                    // as recognition finish, send data to backend
                     recognition.onresult = function(event) {
                         const transcript = event.results[event.results.length - 1][0].transcript;
                         if (ws.readyState === WebSocket.OPEN) {
@@ -52,6 +55,7 @@
                         }
                     };
 
+                    // as recognition end, restart the recognition again
                     recognition.onend = function() {
                         if (isRecognizing) {
                             recognition.start();

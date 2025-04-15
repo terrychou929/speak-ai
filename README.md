@@ -3,6 +3,12 @@
 ## Overview
 This is a real-time AI voice chat web application built with Python, FastAPI, and WebSockets. It uses Microsoft's DialoGPT-medium for conversation and gTTS for text-to-speech. The app supports Chinese (zh-TW) speech recognition and synthesis.
 
+## Techniques
+- FastAPI for building Web
+- WebSocket for realtime and persistant connection
+- Generative AI: use Gen AI Model for auto response
+- Google Text to Speech: use gTTS module for converting text to speech
+
 ## Prerequisites
 - Docker
 - Docker Compose
