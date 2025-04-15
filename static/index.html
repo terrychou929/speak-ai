@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-Time AI Voice Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; }
+        #video-panel { width: 70%; height: 100vh; background: #333; color: white; display: flex; align-items: center; justify-content: center; }
+        #chat-panel { width: 30%; height: 100vh; background: #f0f0f0; padding: 20px; overflow-y: auto; }
+        .message { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .user { background: #d1e7dd; }
+        .ai { background: #f8d7da; }
+        button { padding: 10px; margin: 10px; }
+    </style>
+</head>
+<body>
+    <div id="video-panel">Simulated Video Interface</div>
+    <div id="chat-panel" id="chat">
+        <div id="chat-log"></div>
+        <button onclick="startRecognition()">Start Talking</button>
+        <button onclick="stopRecognition()">Stop Talking</button>
+    </div>
+    <script>
+        let ws = null;
+        let recognition = null;
+        let isRecognizing = false;
+
+        async function startRecognition() {
+            if (!isRecognizing) {
+                ws = new WebSocket("ws://" + window.location.host + "/ws");
+                ws.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    const chatLog = document.getElementById("chat-log");
+                    chatLog.innerHTML += `<div class="message user">${data.user}</div>`;
+                    chatLog.innerHTML += `<div class="message ai">${data.ai}</div>`;
+                    chatLog.scrollTop = chatLog.scrollHeight;
+
+                    // Play AI response audio
+                    const audio = new Audio("data:audio/mp3;base64," + data.audio);
+                    audio.play();
+                };
+
+                if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+                    recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                    recognition.continuous = true;
+                    recognition.interimResults = false;
+                    recognition.lang = 'zh-TW';
+
+                    recognition.onresult = function(event) {
+                        const transcript = event.results[event.results.length - 1][0].transcript;
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ text: transcript }));
+                        }
+                    };
+
+                    recognition.onend = function() {
+                        if (isRecognizing) {
+                            recognition.start();
+                        }
+                    };
+
+                    recognition.start();
+                    isRecognizing = true;
+                } else {
+                    alert("Browser does not support speech recognition.");
+                }
+            }
+        }
+
+        function stopRecognition() {
+            if (isRecognizing) {
+                recognition.stop();
+                isRecognizing = false;
+                if (ws) {
+                    ws.close();
+                }
+            }
+        }
+    </script>
+</body>
+</html>

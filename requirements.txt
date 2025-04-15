@@ -1,0 +1,9 @@
+fastapi==0.115.0
+uvicorn==0.30.6
+websockets==13.0.1
+speechrecognition==3.10.4
+pydub==0.25.1
+transformers==4.44.2
+torch==2.4.1
+numpy==1.26.4
+gtts==2.5.3
