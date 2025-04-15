@@ -1,11 +1,9 @@
-# main.py
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from gtts import gTTS
 import speech_recognition as sr
-import numpy as np
 import base64
 import io
 import os
@@ -25,15 +23,34 @@ async def get():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
+    # Maintain conversation history
+    chat_history_ids = None
     try:
         while True:
             data = await websocket.receive_json()
             user_text = data["text"]
 
+            # Prepare input with conversation history
+            new_user_input_ids = tokenizer.encode(user_text + tokenizer.eos_token, return_tensors='pt')
+            if chat_history_ids is not None:
+                bot_input_ids = new_user_input_ids
+            else:
+                bot_input_ids = new_user_input_ids
+
             # Generate AI response
-            inputs = tokenizer(user_text, return_tensors="pt")
-            outputs = model.generate(inputs["input_ids"], max_length=100, pad_token_id=tokenizer.eos_token_id)
-            ai_response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+            chat_history_ids = model.generate(
+                bot_input_ids,
+                max_length=1000,
+                pad_token_id=tokenizer.eos_token_id,
+                no_repeat_ngram_size=3,
+                do_sample=True,
+                top_k=50,
+                top_p=0.95,
+                temperature=0.8
+            )
+
+            # Decode AI response, excluding the user input
+            ai_response = tokenizer.decode(chat_history_ids[:, bot_input_ids.shape[-1]:][0], skip_special_tokens=True)
 
             # Convert AI response to speech
             tts = gTTS(text=ai_response, lang='zh-tw')
